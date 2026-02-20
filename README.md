@@ -27,7 +27,7 @@ Conversation → /note → Heptabase cards → /review → Long-term memory
 
 **Step 1: Clone this repo**
 ```bash
-git clone https://github.com/yourusername/skills.git
+git clone https://github.com/owenliang60-ship-it/skills.git
 ```
 
 **Step 2: Copy skills to Claude Code**
