@@ -245,8 +245,10 @@ def cmd_due(state, limit):
             "overdue_days": overdue,
         })
 
-    # Sort: new cards first, then by retrievability ascending (most urgent)
-    due_cards.sort(key=lambda c: (0 if c["state"] == "new" else 1, c["retrievability"]))
+    # Sort: learning (reinforcement) > review (scheduled) > new (unseen)
+    # Within each group, sort by retrievability ascending (most urgent first)
+    state_priority = {"learning": 0, "review": 1, "new": 2}
+    due_cards.sort(key=lambda c: (state_priority.get(c["state"], 2), c["retrievability"]))
     return due_cards[:limit]
 
 
