@@ -1,45 +1,67 @@
-# Claude Code Skills: Knowledge Flywheel
+# Knowledge MEMO: Future-Proof Personal Knowledge Engineering
 
-> Two Claude Code skills that close the loop between **capturing** and **retaining** knowledge.
+> 知识MEMO化 — 让每一次阅读、每一次对话、每一个洞察，都变成可检索、可复习、可复利的资产。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ---
 
-## The Problem
+## The Vision
 
-You have great conversations with Claude — research breakthroughs, concept deep-dives, sudden insights. Then you forget them.
+We read constantly — papers, articles, conversations with AI — yet most knowledge evaporates within days.
 
-These two skills fix that:
-
-| Skill | Role | What it does |
-|-------|------|--------------|
-| [`/note`](./note/) | Capture | Distills conversations into atomic knowledge cards → saves to Heptabase |
-| [`/review`](./review/) | Retain | FSRS-6 spaced repetition over your Heptabase cards → AI quizzes you |
+**Knowledge MEMO** is a system of four Claude Code skills that form a closed-loop knowledge engine: **acquire → analyze → capture → retain**. It turns ephemeral reading into compounding intellectual capital.
 
 ```
-Conversation → /note → Heptabase cards → /review → Long-term memory
+        ┌─────────────────────────────────────────┐
+        │         Knowledge MEMO Flywheel          │
+        │                                          │
+        │   /read ──→ /insights ──→ /note ──→ /review
+        │   (理解)     (洞察)       (沉淀)     (巩固)
+        │      ↑                                │
+        │      └────────────────────────────────┘
+        │              feedback loop               │
+        └─────────────────────────────────────────┘
 ```
+
+The thesis: **the bottleneck of personal knowledge is not access — it's retention and retrieval.** LLMs solved access. These skills solve the rest.
+
+---
+
+## The Four Skills
+
+| Skill | Role | Input | Output |
+|-------|------|-------|--------|
+| [`/read`](./read/) | **Acquire** — deep reading | Papers, articles, PDFs | Structured analysis report |
+| [`/insights`](./insights/) | **Analyze** — extract patterns | Business articles, reports | Actionable insights → Obsidian |
+| [`/note`](./note/) | **Capture** — atomic distillation | Any conversation or research | Map (summary) + Stones (atomic cards) → Obsidian |
+| [`/review`](./review/) | **Retain** — spaced repetition | Obsidian atomic cards | FSRS-6 scheduled quizzes |
+
+Each skill is standalone. Together they form a flywheel.
 
 ---
 
 ## Quick Start
 
-**Step 1: Clone this repo**
+**1. Clone**
 ```bash
 git clone https://github.com/owenliang60-ship-it/skills.git
 ```
 
-**Step 2: Copy skills to Claude Code**
+**2. Install all skills**
 ```bash
+cp -r skills/read ~/.claude/skills/read
+cp -r skills/insights ~/.claude/skills/insights
 cp -r skills/note ~/.claude/skills/note
 cp -r skills/review ~/.claude/skills/review
 ```
 
-**Step 3: Use them in any Claude Code session**
+**3. Use in any Claude Code session**
 ```
-/note              # save this conversation to Heptabase
-/review            # start today's spaced repetition session
+/read https://arxiv.org/abs/...     # deep-read a paper
+/insights https://blog.com/...      # extract business insights from an article
+/note                               # distill this conversation into atomic cards
+/review                             # start today's spaced repetition session
 ```
 
 ---
@@ -47,37 +69,42 @@ cp -r skills/review ~/.claude/skills/review
 ## Prerequisites
 
 - **[Claude Code](https://docs.anthropic.com/claude-code)** — Anthropic's CLI for Claude
-- **[Heptabase MCP](https://heptabase.com/)** — the default knowledge backend (see [CONTRIBUTING.md](./CONTRIBUTING.md) to swap it out)
+- **[Obsidian](https://obsidian.md/)** + **Obsidian MCP server** — the knowledge backend for card storage, search, and tagging
+- **Python 3** — for the FSRS-6 review engine (stdlib only, no dependencies)
 
 ---
 
-## Skills
+## How the Flywheel Works
 
-### `/note` — Atomic Knowledge Capture
+### /read — Understand Deeply
 
-Turns any conversation into a **research summary + atomic cards**, saved to Heptabase.
+Simulates an expert reader's process: scan structure → trace arguments → evaluate methods → critique logic. Outputs a structured report you can discuss, then feed into `/note`.
 
-The design philosophy: every `/note` produces two layers:
-- **Map card** — a narrative summary that preserves the reasoning chain
-- **Stone cards** — standalone atomic facts that can be reviewed independently
+- Supports: URLs, PDFs, Obsidian notes, pasted text
+- Modes: `quick` (5-min overview) or `deep` (full analysis)
+- Special lenses: `rosetta`, `method`, `critique`
 
-**Trigger words:** `note`, `make notes`, `save to heptabase`, `atomic notes`
+### /insights — See What Others Miss
 
-→ [Full documentation](./note/README.md)
+Reads business content like an analyst: surface information → deep logic → transferable patterns. Auto-saves to Obsidian.
 
----
+- Focus modes: `general`, `ai`, `strategy`, `model`
+- Every insight has three layers: evidence → logic → transferable pattern
+- Prioritizes counter-intuitive and non-obvious findings
 
-### `/review` — FSRS-6 Spaced Repetition
+### /note — Crystallize Knowledge
 
-Scans your Heptabase atomic cards, schedules reviews using the **FSRS-6 algorithm**, and quizzes you with AI-generated questions.
+Distills any conversation into two layers:
+- **Map** — a narrative summary preserving the reasoning chain
+- **Stones** — standalone atomic cards, each a single idea with `【】` markers for bi-directional linking
 
-Supports two quiz modes:
-- **Recall mode** — describe the card from memory (title shown)
-- **Question mode** — answer a specific question derived from the card content
+### /review — Make It Stick
 
-**Trigger words:** `review`, `spaced repetition`, `what to review today`
+FSRS-6 spaced repetition over your Obsidian atomic cards. AI generates questions, evaluates your answers, and schedules the next review.
 
-→ [Full documentation](./review/README.md)
+- Two quiz modes: recall (describe from memory) and question (answer a specific question)
+- Mastery tracking via Obsidian tags: `mastery/new` → `mastery/again` → `mastery/good` → `mastery/easy`
+- Priority: learning cards (need reinforcement) > review cards (scheduled) > new cards
 
 ---
 
@@ -85,16 +112,27 @@ Supports two quiz modes:
 
 | Decision | Choice | Reason |
 |----------|--------|--------|
-| Knowledge backend | Heptabase (default) | Best atomic card + linking UX; swappable via MCP |
-| Review algorithm | FSRS-6 | State-of-the-art open-source SRS, pure Python stdlib |
+| Knowledge backend | Obsidian + MCP | Local-first, markdown-native, excellent linking |
+| Note structure | Map + Stones | Summaries preserve context; atoms enable review and reuse |
+| Review algorithm | FSRS-6 | State-of-the-art open-source SRS; pure Python stdlib |
 | State storage | Local JSON | Simple, portable, no server needed |
-| Language | Bilingual skill prompts | Skills work with any language |
+| Insight storage | Auto-save to Obsidian | Zero-friction; analysis is the artifact |
+
+---
+
+## Philosophy
+
+Knowledge MEMO is built on three beliefs:
+
+1. **Reading without retention is entertainment, not learning.** The flywheel closes the gap.
+2. **Atomic beats monolithic.** A single idea per card is harder to write but infinitely more useful.
+3. **AI should augment the loop, not replace it.** The skills generate questions and structure — but *you* do the remembering.
 
 ---
 
 ## Contributing
 
-Want to adapt these skills for Obsidian, Notion, or another knowledge tool? See [CONTRIBUTING.md](./CONTRIBUTING.md).
+Want to adapt these skills for Notion, Logseq, or another knowledge tool? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
