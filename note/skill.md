@@ -1,215 +1,260 @@
 ---
 name: note
-description: Distills conversation content into a research summary + atomic knowledge cards, saved to Heptabase. The summary is the map; the cards are the stones. Use bold and 【】 brackets for key terms to enable bi-directional linking. Triggered when user says "note", "make notes", "save to heptabase", "atomic notes", "store this".
+description: 将对话中的研究内容整理为研究摘要 + 原子化笔记卡片，存入Obsidian。摘要是地图，卡片是石头。对专有名词和关键概念用加粗和【】标记，便于双链。当用户说"note"、"做笔记"、"存笔记"、"拆卡片"、"原子笔记"、"存到ob"、"记到obsidian"时触发。
 invocation: user
 arguments:
   - name: topic
-    description: Optional topic scope. If not provided, automatically extracts all noteworthy content from the current conversation.
+    description: 可选的主题范围限定，如不提供则自动从当前对话中提取所有值得记录的内容
     required: false
   - name: scope
-    description: "Optional scope: 'all' (entire conversation), 'last' (most recent discussion), 'select' (let user choose). Default: 'all'"
+    description: "可选的范围：'all'（整个对话）、'last'（最近一轮讨论）、'select'（让用户选择）。默认 'all'"
     required: false
 ---
 
 # /note Command
 
-Distills conversation content into a **research summary + atomic knowledge cards**, saved to Heptabase.
+将对话中的研究内容整理为 **研究摘要 + 原子化笔记卡片**，存入 Obsidian。
 
-## Core Philosophy: Map + Stones
+## 核心理念：地图 + 石头
 
-Every `/note` produces two layers:
+每次 `/note` 产出两层内容：
 
-1. **Research Summary (Map)** — A complete, narrative card that preserves the conversation's arc, reasoning chain, and conclusions. Reading this card alone should recover 80% of the conversation's value.
-2. **Atomic Cards (Stones)** — Independent knowledge units extracted from the summary. Each card stands alone, reusable without context. The summary references these cards via keyword markers.
+1. **研究摘要（地图）** — 一张完整的、叙事性的卡片，保留讨论的脉络、推理链条和结论。读这张卡片就能还原整个研究过程。
+2. **原子卡片（石头）** — 从摘要中提炼的独立知识点，每张可脱离上下文复用。摘要中会引用这些卡片的关键词。
 
-**The map makes the stones meaningful; the stones make the map linkable.**
+**地图让石头有意义，石头让地图可链接。**
 
-## Skill Positioning
+## 定位
 
-| Skill | Role | Output |
-|-------|------|--------|
-| `/note` | Knowledge capture — research summary + atomic cards | Heptabase card set |
-| `/log` | Memory capture — decisions, preferences, insights | Long-term memory file |
-| `/journal` | Progress log — what was done | Local journal + Heptabase journal |
+| Skill | 职责 | 输出 |
+|-------|------|------|
+| `/note` | 知识沉淀 — 研究摘要 + 原子卡片 | Obsidian 卡片组 |
+| `/log` | 记忆捕获 — 决策、偏好、洞察 | L2 long-term-memory.md |
+| `/journal` | 进度记录 — 做了什么 | 本地 journal + Obsidian journal |
 
-## Bi-directional Link Notation
+## 双链标记规范
 
-- **【Key Term】**: Academic concepts, theory names, proper nouns, model names, genes/molecules/drugs
-  - e.g.: 【reward prediction error】, 【Kent Berridge】, 【COMT Val158Met】, 【SSRI】
-- **Bold**: Core conclusions or key insights
-  - e.g.: **dopamine encodes "is it worth the effort", not pleasure itself**
-- Both can be combined: **【extinction learning】is the neuroscientific basis of memory reconsolidation**
+- **【专有名词】**：学术概念、理论名称、人名、模型名、基因/分子/药物
+  - 例：【奖励预测误差】、【Kent Berridge】、【COMT Val158Met】、【SSRI】
+- **加粗**：核心结论或关键洞察
+  - 例：**多巴胺编码的是"值不值得出力"，而非快乐本身**
+- 两者可叠加：**【消退学习】是记忆改写的神经科学基础**
 
-### Notation Quick Reference
+### 标记选择速查
 
-| Content Type | Marker | Example |
-|-------------|--------|---------|
-| Academic concept / theory | 【】 | 【reward prediction error】, 【implementation intentions】 |
-| Proper noun / person | 【】 | 【Wolfram Schultz】, 【Berridge】 |
-| Gene / molecule / drug | 【】 | 【DRD4】, 【COMT】, 【SSRI】 |
-| Core conclusion | **bold** | **receptor density 67% determined by genetics** |
-| Key distinction | **bold** | **wanting ≠ liking** |
-| Important concept + conclusion | combined | **【anhedonia】is the core feature of depression** |
+| 内容类型 | 标记 | 示例 |
+|---------|------|------|
+| 学术概念/理论 | 【】 | 【奖励预测误差】、【心理对比】 |
+| 人名 | 【】 | 【Wolfram Schultz】、【Berridge】 |
+| 基因/分子/药物 | 【】 | 【DRD4】、【COMT】、【SSRI】 |
+| 核心结论 | **加粗** | **受体密度67%由遗传决定** |
+| 关键区分 | **加粗** | **wanting ≠ liking** |
+| 重要概念+结论 | 叠加 | **【快感缺失】是抑郁症的核心特征** |
 
 ## Behavior
 
-### Step 1: Scan the Conversation, Understand the Research Arc
+### Step 1: 扫描对话，理解研究脉络
 
-Review the conversation (or specified scope) and identify:
-- What prompted the research and what the topic is
-- What phases or turning points the discussion went through
-- What key conclusions were reached
-- Which knowledge points deserve their own standalone card
+回溯对话（或指定范围），梳理：
+- 研究的起因和主题是什么
+- 讨论经历了哪些阶段/转折
+- 得出了哪些关键结论
+- 哪些知识点值得独立成卡
 
-### Step 2: Write the Research Summary (Map Card)
+### Step 2: 撰写研究摘要（地图卡片）并展示给用户
 
-The research summary is a **complete, detailed** card with this structure:
+研究摘要是一张 **完整的、翔实的** 卡片。**此阶段只写摘要，不创建原子卡片。** 所有专有名词用【】标记作为候选概念。
 
-```markdown
-# [Research Topic] — Research Summary
-
-> Date: YYYY-MM-DD | Source: [conversation origin, e.g. "analysis of an article", "exploring a question"]
-
-## Background
-
-[1-2 paragraphs: why this topic was researched, what prompted it]
-
-## Key Findings
-
-### [Sub-topic 1]
-
-[Detailed content: preserve key arguments, data, reasoning chain. Not abbreviated — refined. Remove redundancy but keep substance.]
-
-### [Sub-topic 2]
-
-[Same as above]
-
-### [Sub-topic N]
-
-[Same as above]
-
-## Key Conclusions
-
-[3-5 most important takeaways, numbered list]
-
-## Open Questions
-
-[Questions that surfaced but weren't explored deeply, for future investigation]
-
-## Related Concepts
-
-【Concept 1】【Concept 2】【Concept 3】... (list all keywords corresponding to atomic cards, as bi-link entry points)
-```
-
-**Summary writing principles:**
-
-- **Completeness first**: Better longer than missing key information
-- **Preserve reasoning chains**: Not just conclusions, but "why we reached this conclusion"
-- **Preserve data**: Specific numbers, experimental designs, percentages — don't omit
-- **Preserve disagreements**: If the conversation challenged or revised a view, record that process too
-- **Natural 【】 embedding**: Use 【】 markers naturally in prose; they simultaneously serve as "signposts" pointing to atomic cards
-
-### Step 3: Extract Atomic Cards (Stones)
-
-From the research summary, extract knowledge points that deserve to stand alone. Each card structure:
+摘要结构：
 
 ```markdown
-# [Card Title — declarative sentence containing 【keyword】, ≤ 50 chars]
+# [研究主题] — 研究摘要
 
-[Body: 1-3 paragraphs, 50–3000 words, explaining this one concept clearly. Must use 【】 for proper nouns and **bold** for core conclusions.]
+> 日期：YYYY-MM-DD | 来源：[对话起因，如"某篇文章分析"、"某个问题探究"]
 
-> Reference: [source]
+## 研究背景
+
+[1-2 段：为什么研究这个话题，起因是什么]
+
+## 核心发现
+
+### [子主题1]
+
+[翔实内容：保留关键论据、数据、推理链条。不是缩写，而是精炼——删掉冗余但保留实质。]
+
+### [子主题2]
+
+[同上]
+
+### [子主题N]
+
+[同上]
+
+## 关键结论
+
+[3-5 条最重要的 takeaway，用编号列表]
+
+## 延伸问题
+
+[对话中浮现但未深入的问题，供后续探索]
 ```
 
-**Hard format requirements (ensures `/review` can discover them):**
-- Title ≤ 50 characters, contains at least one 【keyword】
-- Body 50–3000 characters, contains at least one 【】 or `**` marker
-- Title does NOT contain "Research Summary" (that's the map card identifier)
+**注意：此阶段不写"相关概念"section，等用户选完概念后再生成。**
 
-**Extraction priority (high → low):**
+**摘要写作原则：**
 
-1. Factual knowledge — empirically supported scientific findings, data
-2. Conceptual frameworks — theoretical models, classification systems
-3. Causal mechanisms — A → B mechanism chains
-4. Counter-intuitive insights — findings that contradict common sense
-5. Actionable methods — executable strategies
-6. Meta-cognition — insights about thinking itself
+- **翔实优先**：宁可长一点也不要丢失关键信息。读者应该只看摘要就能获得 80% 的对话价值
+- **保留推理链**：不只是结论，还要保留"为什么得出这个结论"的论证过程
+- **保留数据**：具体数字、实验设计、百分比等不要省略
+- **保留争议**：如果对话中有质疑或修正某个观点，这个过程本身也要记录
+- **自然嵌入【】标记**：在行文中自然使用【】标记专有名词。此阶段【】是候选标记，不是最终双链
 
-**Do NOT extract:**
-- Pure subjective judgments
-- Transitional discussion
-- Information that was corrected or retracted
+**写好后直接展示完整摘要给用户阅读。**
 
-**Atomicity judgment:**
-- Can it be understood independently without context? → Granularity is correct
-- Does it contain two separately-citable concepts? → Split it
-- Would splitting leave either half unable to stand alone? → Don't split
+### Step 3: 用户选择哪些概念值得做原子卡片
 
-### Step 4: Show Summary, Wait for Confirmation
-
-Present to the user:
+从摘要中提取所有【】标记的概念，列成编号清单供用户挑选：
 
 ```
-Ready to create 1 research summary + N atomic cards:
+摘要中共有 N 个候选概念，请选择哪些值得创建原子卡片：
 
-📄 Research Summary: [title]
-
-Atomic Cards:
-1. [Card title 1] — [one sentence description]
-2. [Card title 2] — [one sentence description]
+1. 【概念A】— [一句话说明为什么值得独立成卡]
+2. 【概念B】— [一句话]
+3. 【概念C】— [一句话]
 ...
 
-Confirm save to Heptabase? (can adjust: remove / merge / add)
+请回复编号（如 1,3,5）或说"全部"/"不需要卡片"
 ```
 
-**Wait for user confirmation before Step 5.** If user says "just save it", skip confirmation.
+**CC 可以给出推荐**（如在编号后标注"推荐"），但最终由用户决定。
 
-### Step 5: Save to Heptabase
+**提取优先级（供推荐参考，高→低）：**
 
-> **Default MCP: Heptabase** — calls `mcp__heptabase__save_to_note_card`
-> To use a different knowledge tool, see [CONTRIBUTING.md](../CONTRIBUTING.md) for how to swap the MCP calls.
+1. 事实性知识 — 有实证的科学发现、数据
+2. 概念框架 — 理论模型、分类体系
+3. 因果机制 — A→B 的机理链
+4. 反直觉洞察 — 与常识相反的发现
+5. 实操方法 — 可执行的策略
+6. 元认知 — 关于思维本身的洞察
 
-1. **Save research summary first** (call `mcp__heptabase__save_to_note_card`)
-2. **Then save all atomic cards in parallel** (multiple parallel calls)
+**不推荐提取：**
+- 纯主观判断
+- 过渡性讨论
+- 已被纠正的信息
+- 过于宽泛的概念（如"科学"、"方法"）
 
-### Step 6: Output Confirmation
+**等用户回复后再进入 Step 4。**
+
+### Step 4: 创建原子卡片 + 在摘要中添加双链
+
+根据用户选择，执行两件事：
+
+#### 4a: 为选中的概念创建原子卡片
+
+每张卡片结构：
+
+```markdown
+# [卡片标题 — 陈述句，含【关键词】，20字以内]
+
+[正文：1-3 段，50~3000字，说清这一个概念。正文中必须使用【】标记专有名词、**加粗**标记核心结论。]
+
+> 参考：[来源]
+```
+
+**格式硬性要求（确保 `/review` 可发现）：**
+- **标题必须含【关键词】** — 这是原子卡片的唯一识别标准，`/review` 靠标题中的【】判断是否为原子卡片
+- 标题 ≤ 50 字
+- 正文 50~3000 字，含至少一处【】或 `**` 标记
+- 标题不含"研究摘要"（这是地图卡片的标识）
+
+**原子化判断标准：**
+- 能脱离上下文独立理解？ → 粒度正确
+- 包含两个可分别引用的概念？ → 需要拆分
+- 拆开后任一半无法独立理解？ → 不拆
+
+#### 4b: 在研究摘要中添加 Obsidian 双链
+
+对摘要正文进行双链替换：
+- **用户选中的概念**：`【概念A】` → `[[概念A]]`（真正的 Obsidian wiki link，指向对应原子卡片）
+- **未选中的概念**：保留 `【概念A】` 不变（纯视觉标记，无链接）
+- 如果同一概念在摘要中出现多次，**全部替换**为 `[[]]`
+
+同时在摘要末尾添加"相关概念"section，只列出有对应原子卡片的概念：
+
+```markdown
+## 相关概念
+
+[[概念1]] [[概念2]] [[概念3]]...
+```
+
+### Step 5: 存入 Obsidian
+
+> **工具优先级**：CLI 优先，MCP 仅在 Obsidian 未运行时回退使用。
+
+**一次性存入所有内容：**
+
+1. **先存原子卡片**：`obsidian create path="Cards/{卡片标题}.md" content="..." overwrite`
+2. **再存研究摘要**（已包含 `[[]]` 双链）：`obsidian create path="Cards/{研究摘要标题}.md" content="..." overwrite`
+
+先存卡片再存摘要，确保摘要中的 `[[]]` 链接在存入时目标卡片已存在。
+
+注意：content 中应包含完整 YAML frontmatter（tags、date、source 等），无需单独调标签接口。
+
+如果用户选择"不需要卡片"，则只存研究摘要（保留所有【】标记，不替换为 `[[]]`）。
+
+### Step 5b: 添加标签
+
+标签直接写入 frontmatter，无需单独调用。如需为已存在的文件补标签：
+
+- 优先：`obsidian property:set path="Cards/{标题}.md" name="tags" value="type/research,domain/{领域}" type=list`
+- 回退：`mcp__obsidian__manage_tags`（仅当 Obsidian 应用未运行且 CLI 报 connection refused 时）
+
+标签规则：
+- **研究摘要**: `type/research`, `domain/{领域}`
+- **原子卡片**: `type/atomic`, `domain/{领域}`
+
+领域推断：从研究主题自动判断，同一批卡片共享领域标签。可多标签。不确定时用最贴切的自由词（如 `domain/neuroscience`, `domain/ai`, `domain/finance`, `domain/consciousness`）。
+
+### Step 6: 输出确认
 
 ```
 ---
-Saved to Heptabase: 1 summary + N atomic cards
+已存入 Obsidian: 1 张摘要 + N 张原子卡片
 
-📄 [Summary title]
+📄 [摘要标题]（含 N 个 [[双链]]）
 
-1. ✓ [Card title 1]
-2. ✓ [Card title 2]
+1. ✓ [卡片标题1]
+2. ✓ [卡片标题2]
 ...
 
-Keyword index: 【term1】【term2】【term3】...
+双链索引：[[概念1]] [[概念2]] [[概念3]]...
 ---
 ```
 
-## Special Scenarios
+## 特殊场景
 
-### Article Analysis Conversations
+### 文章分析类对话
 
-The summary should include:
-- The original article's core arguments (marking which are correct/incorrect)
-- Fact-checking conclusions and evidence
-- Overall assessment (accuracy, value, limitations)
+摘要中应包含：
+- 原文的核心论点（标记哪些对、哪些错）
+- 事实核查的结论和证据
+- 总体评价（准确度、价值、局限）
 
-Atomic cards: only extract knowledge points that survive fact-checking, or clearly label contested concepts.
+原子卡片区分：
+- 不需要前缀标记，因为摘要已经提供了完整的评价上下文
+- 只提取经核查后仍成立的知识点，或明确标注争议的概念
 
-### Conversations That Produced Comparison Tables or Frameworks
+### 对话产生了对比表/框架
 
-**Preserve table format** as a single atomic card — don't force it into prose. The table itself is atomic; its value lies in the parallel comparison.
+**保留表格形式**作为一张原子卡片，不强行拆散。表格本身就是原子——它的价值在于并列对比。
 
-### Multi-Topic Conversations
+### 多主题对话
 
-If a conversation covered multiple unrelated topics, create **multiple research summaries** — one per topic — each with its own atomic cards.
+如果一次对话涵盖了多个不相关主题，创建**多张研究摘要**，每个主题一张，各自附带自己的原子卡片。
 
 ## Notes
 
-- Atomic cards: recommend no more than 15 per session; if more, confirm priorities with user
-- Research summary: no length limit, completeness is the principle
-- 【】 markers should appear in both summary and atomic cards — the summary's 【】 are signposts pointing to atomic cards
-- The same 【keyword】 appearing in multiple cards is normal and intended — this is exactly how bi-directional linking creates value
+- 原子卡片建议不超过 15 张，超过时与用户确认优先级
+- 研究摘要不限长度，以翔实为原则
+- 【】标记在摘要和原子卡片中都要使用——摘要中的【】是通往原子卡片的路标
+- 同一个【关键词】在不同卡片中重复出现是正常的——这正是双链的价值
