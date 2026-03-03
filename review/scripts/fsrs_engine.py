@@ -13,6 +13,7 @@ Commands:
     register         --id ID --title T --content C   Register one card
     bulk_register                           Register cards from stdin JSON
     record_session                          Record session summary from stdin JSON
+    retire           --id ID               Retire card (remove from review pool)
     stats                                   Print statistics
 """
 
@@ -197,6 +198,16 @@ def save_state(path, state):
 
 # ── Commands ──────────────────────────────────────────────────────
 
+def cmd_retire(state, card_id):
+    """Retire a card — remove from review pool but keep in state."""
+    if card_id not in state["cards"]:
+        return {"error": f"Card not found: {card_id}"}
+
+    card = state["cards"][card_id]
+    card["state"] = "retired"
+    return {"status": "retired", "id": card_id, "title": card["title"]}
+
+
 def cmd_due(state, limit):
     """Return up to `limit` due cards sorted by urgency (lowest R first)."""
     today = date.today().isoformat()
@@ -205,6 +216,10 @@ def cmd_due(state, limit):
     due_cards = []
 
     for cid, card in state["cards"].items():
+        # Skip retired cards
+        if card["state"] == "retired":
+            continue
+
         # New cards are always "due"
         if card["state"] == "new":
             due_cards.append({
@@ -436,6 +451,10 @@ def cmd_stats(state):
         s = card["state"]
         by_state[s] = by_state.get(s, 0) + 1
 
+        # Skip retired cards from due/difficulty/stability calculations
+        if s == "retired":
+            continue
+
         if card["due_date"] <= today:
             due_today += 1
 
@@ -557,6 +576,15 @@ def main():
             sys.exit(1)
         result = cmd_record_session(state, session_data)
         save = True
+
+    elif command == "retire":
+        opts = parse_args(extra)
+        card_id = opts.get("id")
+        if not card_id:
+            result = {"error": "Missing --id"}
+        else:
+            result = cmd_retire(state, card_id)
+            save = True
 
     elif command == "stats":
         result = cmd_stats(state)

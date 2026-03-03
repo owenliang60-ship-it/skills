@@ -1,281 +1,318 @@
 ---
 name: review
-description: Spaced repetition review system. Scans Heptabase atomic cards, schedules reviews using the FSRS-6 algorithm, AI-generated questions + scoring. Triggered when user says "review", "spaced repetition", "what to review today", "review cards".
+description: 间隔重复复习系统。扫描Obsidian原子卡片，用FSRS-6算法安排复习，AI出题+评分。当用户说"review"、"复习"、"间隔重复"、"复习卡片"、"今天复习什么"时触发。
 invocation: user
 arguments:
   - name: mode
-    description: "'start' (default: scan + review), 'scan' (discover new cards only), 'stats' (show statistics)"
+    description: "'start'（默认，扫描+复习）、'scan'（仅扫描新卡片）、'stats'（统计信息）"
     required: false
   - name: limit
-    description: Maximum cards per session, default 10
+    description: 单次最大卡片数，默认10
     required: false
   - name: topic
-    description: Optional topic filter, e.g. "dopamine", "AI Agent"
+    description: 可选主题过滤，如"多巴胺"、"AI Agent"
     required: false
 ---
 
 # /review Command
 
-Spaced repetition review system — reviews atomic cards (stones) in Heptabase using the FSRS-6 algorithm.
+间隔重复复习系统 — 用 FSRS-6 算法复习 Obsidian 中的原子卡片（石头）。
 
-## Positioning
+## 定位
 
 ```
-Research → /note saves cards → /review reviews → knowledge retained
+研究 → /note 存卡 → /review 复习 → 知识巩固
 ```
 
-| Skill | Role | Output |
-|-------|------|--------|
-| `/note` | Knowledge capture — research summary + atomic cards | Heptabase card set |
-| `/review` | Knowledge retention — spaced repetition | Local `state.json` |
-| `/journal` | Progress log — what was done | Local journal + Heptabase journal |
+| Skill | 职责 | 输出 |
+|-------|------|------|
+| `/note` | 知识沉淀 — 研究摘要 + 原子卡片 | Obsidian 卡片组 |
+| `/review` | 知识巩固 — 间隔重复复习 | 本地 review_state.json |
+| `/journal` | 进度记录 — 做了什么 | 本地 journal + Obsidian journal |
 
-## File Paths
+## 文件路径
 
-- **FSRS Engine**: `~/.claude/skills/review/scripts/fsrs_engine.py`
-- **State File**: `~/.claude/skills/review/state.json`
-
-> The state file is created automatically on first run. You can move it anywhere by passing a different path to `fsrs_engine.py` — but keep it consistent across sessions.
+- **FSRS 引擎**: `~/.claude/skills/review/scripts/fsrs_engine.py`
+- **状态文件**: `~/CC workspace/Research/.claude/review_state.json`
 
 ## Usage
 
 ```
-/review                     # scan + review (default)
-/review --mode=scan         # discover new cards only, no review
-/review --mode=stats        # show statistics
-/review --topic=dopamine    # only review cards matching a topic
-/review --limit=5           # max 5 cards this session
+/review                     # 扫描 + 复习（默认）
+/review --mode=scan         # 仅扫描新卡片，不复习
+/review --mode=stats        # 查看统计信息
+/review --topic=多巴胺      # 只复习某主题
+/review --limit=5           # 本次最多复习5张
 ```
 
 ## Behavior
 
-### Step 1: Scan and Register New Cards
+### Step 1: 扫描注册新卡片
 
-**Runs automatically every `/review` (except mode=stats).**
+**每次 `/review` 自动执行（除 mode=stats）。**
 
-#### 1a. Get Current State
+#### 1a. 获取当前状态
 
 ```bash
 python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
-  ~/.claude/skills/review/state.json stats
+  "~/CC workspace/Research/.claude/review_state.json" stats
 ```
 
-Read `known_card_ids` from the response to know which cards are already registered.
+从返回的 `known_card_ids` 得知已注册卡片。
 
-#### 1b. Search Heptabase for New Cards
+#### 1b. 列出 Cards/ 目录发现新卡片
 
-Use `mcp__heptabase__semantic_search_objects` in multiple waves:
+**唯一识别标准：文件名含【】= 原子卡片。**
 
-> **Default MCP: Heptabase** — calls `mcp__heptabase__semantic_search_objects` and `mcp__heptabase__get_object`
-> To use a different knowledge tool, see [CONTRIBUTING.md](../CONTRIBUTING.md).
-
-**Wave 1 — Domain keywords (always run)**:
 ```
-queries: ["knowledge point research finding", "mechanism concept principle"]
-resultObjectTypes: ["card"]
+obsidian files folder="Cards"
 ```
 
-**Wave 2 — Expand from known cards (if cards already exist)**:
-Extract 【】 keywords from registered card titles, use them as search queries.
+从返回的文件名列表中，过滤出文件名含 `【` 的文件 = 原子卡片候选。
 
-**Wave 3 — Topic-targeted (if user specified topic)**:
-```
-queries: ["<topic> knowledge point", "<topic> mechanism principle"]
-resultObjectTypes: ["card"]
-```
+如果用户指定了 topic，进一步过滤：文件名或后续读取的内容中包含 topic 关键词。
 
-#### 1c. Filter for Atomic Cards (stones vs. maps)
+#### 1c. 排除已注册卡片
 
-From search results, keep only atomic cards:
-- Title ≤ 50 characters
-- Title does NOT contain "Research Summary"
-- Body 50–3000 characters
-- Contains 【】 markers or bold (`**`)
+对比 `known_card_ids`，只保留未注册的新卡片。
 
-Exclude already-registered cards (compare against `known_card_ids`).
+#### 1d. 注册新卡片
 
-#### 1d. Register New Cards
-
-For each new card, fetch full content with `mcp__heptabase__get_object`, then batch-register:
+对新卡片分批调用 `mcp__obsidian__read_multiple_notes`（每批 ≤ 10 个，批量读取允许使用 MCP）获取完整内容，然后批量注册：
 
 ```bash
 echo '<JSON>' | python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
-  ~/.claude/skills/review/state.json bulk_register
+  "~/CC workspace/Research/.claude/review_state.json" bulk_register
 ```
 
-Input JSON format: `[{"id": "<hb_id>", "title": "...", "content": "..."}]`
+输入 JSON 格式：`[{"id": "Cards/{title}.md", "title": "...", "content": "..."}]`
 
-**Always use `bulk_register` (stdin JSON), even for a single card. Do not use the `register` CLI command for cards with special characters.**
+**注意：始终使用 `bulk_register`（stdin JSON），即使只有一张卡片。不要使用 `register` CLI 命令注册含特殊字符的卡片内容。**
 
-#### 1e. Report Scan Results
+#### 1d-2. 为新注册卡片打 mastery/new 标签
+
+对每张新注册的卡片，并行调用：
+```
+obsidian property:set path="Cards/{title}.md" name="tags" value="{existing_tags},mastery/new" type=list
+```
+
+#### 1e. 报告扫描结果
 
 ```
-Scan complete — discovered N new cards, pool now has M cards
+扫描完成 — 发现 N 张新卡片，卡片池共 M 张
 ```
 
-**If mode=scan, stop here.**
+**如果 mode=scan，到此结束。**
 
-### Step 2: Get Cards Due for Review
+### Step 2: 获取待复习卡片
 
 ```bash
 python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
-  ~/.claude/skills/review/state.json due --limit <limit>
+  "~/CC workspace/Research/.claude/review_state.json" due --limit <limit>
 ```
 
-- 0 cards due → show "No cards due today" + next review date → stop
-- > 0 cards → enter review session
+- 如果 0 张到期 → 显示"今天没有待复习的卡片"+ 下次复习日期 → 结束
+- 如果 > 0 → 进入复习会话
 
-If user specified `topic`, filter the due cards by title/content match.
+如果用户指定了 `topic`，从到期卡片中过滤：
+- 有 `domain/` 标签 → 精确匹配 `domain/{topic}`
+- 无标签 → fallback 到标题/内容文本匹配
 
-### Step 3: Review Session (one card at a time)
+### Step 3: 复习会话（循环每张卡片）
 
-#### 3a. Choose Quiz Mode
+#### 3a. 选择提问模式
 
-- **New card** (reps=0) → **Force question mode** (user hasn't seen content yet, recall is meaningless)
-- **Old card** (reps>0) → **Random switch**: ~50% recall mode, ~50% question mode
+- **新卡片**（reps=0）→ **强制提问模式**（用户还没见过内容，回忆无意义）
+- **老卡片**（reps>0）→ **随机切换**：约 50% 回忆模式，50% 提问模式
 
-#### 3b. Present the Question
+#### 3b. 展示问题
 
-**Recall mode:**
+**回忆模式：**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[1/8] Recall mode
+[1/8] 回忆模式
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-From memory, describe the core content of this card:
+请凭记忆描述这张卡片的核心内容：
 
-  【dopamine】encodes motivation, not pleasure
+  【多巴胺】编码动机而非快乐
 ```
 
-**Question mode:**
-Extract a key knowledge point from the card content and generate a specific question:
+**提问模式：**
+从卡片内容中提取一个关键知识点，生成具体问题：
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[1/8] Question mode
+[1/8] 提问模式
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-What two independent reward systems did Kent Berridge's research distinguish in the brain?
+Kent Berridge 的研究区分了大脑中哪两套独立的奖励系统？
 ```
 
-Question requirements:
-- Must have a definite answer (derivable from card content)
-- Avoid yes/no questions
-- Cover the card's core knowledge point
+提问要求：
+- 问题必须有明确答案（从卡片内容可得）
+- 避免"是/否"问题
+- 覆盖卡片核心知识点
 
-**Wait for user's answer.**
+**等待用户回答。**
 
-#### 3c. AI Evaluates the Answer
+#### 3b-2. 淘汰机制
 
-Compare against the card's original text (`content_snippet`), evaluate on three dimensions:
-1. **Core knowledge coverage** — how many key concepts were mentioned
-2. **Accuracy** — any factual errors
-3. **Precision** — vague impression vs. precise recall
+如果用户回答"淘汰"、"skip"、"retire"或类似表达，执行淘汰流程而非评分：
 
-Rating mapping:
-
-| Rating | Value | Condition |
-|--------|-------|-----------|
-| Again | 1 | Completely forgotten / core entirely wrong |
-| Hard | 2 | Right direction but >50% key details missing |
-| Good | 3 | Core knowledge points basically correct |
-| Easy | 4 | Fully accurate including key details |
-
-#### 3d. Show Feedback + Record
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Rating: Good (3)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Correct: wanting vs liking distinction
-Missed: Salamone's supplementary finding (dopamine-depleted mice still enjoy sweet food)
-
-Full card content:
-> [content_snippet]
-
-Next review: in 3 days (2026-02-23)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-Record the rating:
+1. 调用 retire 命令：
 ```bash
 python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
-  ~/.claude/skills/review/state.json record \
+  "~/CC workspace/Research/.claude/review_state.json" retire \
+  --id <card_id>
+```
+
+2. 更新 Obsidian 标签为 `mastery/retired`：
+```
+obsidian property:set path="Cards/{title}.md" name="tags" value="{updated_tags_with_mastery/retired}" type=list
+```
+
+3. 展示确认：
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+已淘汰：【卡片标题】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+卡片保留在 Obsidian，不再出现在复习中。
+```
+
+4. 继续下一张卡片。
+
+#### 3c. AI 评估回答
+
+对照卡片原文（content_snippet），从三个维度评估：
+1. **核心知识点覆盖率** — 提到了多少关键概念
+2. **准确性** — 有无事实错误
+3. **精确度** — 模糊印象 vs 精确回忆
+
+评分映射：
+
+| Rating | 值 | 条件 |
+|--------|---|------|
+| Again | 1 | 完全不记得 / 核心全错 |
+| Hard | 2 | 方向对但关键细节缺失 >50% |
+| Good | 3 | 核心知识点基本正确 |
+| Easy | 4 | 完全准确含关键细节 |
+
+#### 3d. 展示反馈 + 记录
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+评分：Good (3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+正确：wanting vs liking 的区分
+遗漏：Salamone 的补充发现（多巴胺敲除鼠仍享受甜食）
+
+卡片完整内容：
+> [展示 content_snippet]
+
+下次复习：3天后 (2026-02-23)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+记录评分：
+```bash
+python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
+  "~/CC workspace/Research/.claude/review_state.json" record \
   --id <card_id> --rating 3
 ```
 
-**If user disputes the rating** (e.g., "this should be Hard"), re-call record with the user's override.
+**如果用户对评分有异议**（如"这个应该是 Hard"），用用户覆盖的评分重新调用 record。
 
-#### 3e. Next Card
+#### 3d-2. 写回 mastery 标签到 Obsidian
 
-Continue to the next card until all due cards are reviewed or limit is reached.
+每次 `record` 后，根据本次复习评分写回掌握等级到卡片 frontmatter：
 
-### Step 4: Session Summary
+| 标签 | 对应评分 | 含义 |
+|------|----------|------|
+| `mastery/new` | — | 从未复习 |
+| `mastery/again` | Again (1) | 完全不记得 |
+| `mastery/hard` | Hard (2) | 勉强想起，细节缺失 |
+| `mastery/good` | Good (3) | 核心掌握 |
+| `mastery/easy` | Easy (4) | 完全掌握 |
+| `mastery/retired` | 淘汰 | 已从复习池移除 |
+
+操作步骤（可与下一张卡片的提问并行）：
+
+1. 读取当前标签：`obsidian tags path="Cards/{title}.md"`
+2. 从结果中去掉旧 mastery 标签（mastery/new, mastery/again, mastery/hard, mastery/good, mastery/easy），加入新标签 `mastery/{level}`
+3. 写回：`obsidian property:set path="Cards/{title}.md" name="tags" value="{updated_tags}" type=list`
+
+> 仅当 Obsidian 应用未运行且 CLI 报 connection refused 时回退 MCP `mcp__obsidian__manage_tags`（remove + add 两步并行）。
+
+#### 3e. 下一张卡片
+
+继续下一张，直到所有到期卡片复习完或达到 limit。
+
+### Step 4: 会话总结
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Review Complete
+复习完成
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-This session: 8 cards
-Rating breakdown: Again 1 | Hard 2 | Good 4 | Easy 1
-Avg retrievability: 82%
+本次复习：8 张卡片
+评分分布：Again 1 | Hard 2 | Good 4 | Easy 1
+平均记忆保持率：82%
 
-Weak cards:
-- 【extinction learning】— Again, review tomorrow
-- 【prefrontal cortex】— Hard, review in 2 days
+薄弱卡片：
+- 【消退学习】— Again, 明天复习
+- 【前额叶皮层】— Hard, 2天后复习
 
-Next review: 3 cards due tomorrow
+下次复习：明天有 3 张卡片到期
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Record session to state file:
+记录 session 到状态文件：
 
 ```bash
-echo '{"date":"YYYY-MM-DD","cards_reviewed":8,"ratings":{"Again":1,"Hard":2,"Good":4,"Easy":1},"avg_retrievability":0.82}' | \
+echo '{"date":"2026-02-20","cards_reviewed":8,"ratings":{"Again":1,"Hard":2,"Good":4,"Easy":1},"avg_retrievability":0.82}' | \
   python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
-  ~/.claude/skills/review/state.json record_session
+  "~/CC workspace/Research/.claude/review_state.json" record_session
 ```
 
-### Step 5: mode=stats Output
+### Step 5: mode=stats 输出
 
 ```bash
 python3 ~/.claude/skills/review/scripts/fsrs_engine.py \
-  ~/.claude/skills/review/state.json stats
+  "~/CC workspace/Research/.claude/review_state.json" stats
 ```
 
-Formatted output:
+格式化输出：
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Review Statistics
+复习统计
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Card pool: M cards (new X / learning Y / review Z)
-Due today: N cards
-Next due: YYYY-MM-DD
+卡片池：M 张（新 X / 学习中 Y / 复习中 Z）
+今日到期：N 张
+下次到期：YYYY-MM-DD
 
-Historical rating breakdown:
+历史评分分布：
 Again: XX | Hard: XX | Good: XX | Easy: XX
 
-Avg difficulty: X.X / 10
-Avg stability: X.X days
+平均难度：X.X / 10
+平均稳定性：X.X 天
 
-Total reviews: XX
-Total sessions: XX
+总复习次数：XX 次
+总会话数：XX 次
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-## Key Rules
+## 关键规则
 
-1. **Wait for user's answer** — after presenting a question, must wait for user input; never answer for them
-2. **Rating is overridable** — when user says "this should be Hard", use their rating
-3. **One card at a time** — never batch-display; show one card's question per turn
-4. **Show full content** — after rating, always show the original card text to reinforce learning
-5. **State file path is fixed** — always use `~/.claude/skills/review/state.json` (unless you deliberately moved it)
+1. **等待用户回答** — 展示问题后必须等用户输入，不能自己回答
+2. **评分可覆盖** — 用户说"这个应该是 Hard"时，用用户的评分
+3. **一张一张来** — 不要批量展示，每次只展示一张卡片的问题
+4. **展示完整内容** — 评分后必须展示卡片原文，帮助用户巩固
+5. **状态文件路径固定** — 始终使用 `~/CC workspace/Research/.claude/review_state.json`
 
 ## Notes
 
-- Heptabase semantic search returns ~45 results max per query; large card pools need multiple sessions to fully discover
-- `content_snippet` is fixed at registration time; edits to the original HB card do not sync automatically
-- FSRS parameters use global defaults; no personalized training currently
-- First run auto-creates `state.json`
+- content_snippet 注册时固定，Obsidian 原卡修改后需重新 scan 同步
+- FSRS 参数使用全局默认值，暂不做个性化训练
+- 首次运行会自动创建 review_state.json
